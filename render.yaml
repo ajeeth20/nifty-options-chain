@@ -3,8 +3,31 @@ services:
     name: nifty-options-chain
     env: python
     plan: free
+    region: singapore
+    pythonVersion: "3.11.9"
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --workers 2 --timeout 120 --bind 0.0.0.0:$PORT
-    envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
+```
+
+5. Click **Commit changes**
+
+---
+
+## Then on Render dashboard
+
+1. Go to your service → click **Settings** tab
+2. Scroll down to **Environment** section
+3. Click **Add Environment Variable**
+4. Add this:
+   - Key: `PYTHON_VERSION`
+   - Value: `3.11.9`
+5. Click **Save Changes**
+
+---
+
+## Trigger redeploy
+
+1. Click **Manual Deploy** → **Deploy latest commit**
+2. Watch the logs — first line should now say:
+```
+   ==> Installing Python version 3.11.9
