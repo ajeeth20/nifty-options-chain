@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nifty Options Chain · Live</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c12;
+    --bg2: #0d1117;
+    --bg3: #131a24;
+    --bg4: #1a2333;
+    --border: #1e2d3d;
+    --border2: #243447;
+    --text: #c9d1d9;
+    --text2: #8b949e;
+    --text3: #4d5966;
+    --accent: #58a6ff;
+    --accent2: #1f6feb;
+    --green: #3fb950;
+    --green2: #196127;
+    --greenBg: #0d2a1a;
+    --red: #f85149;
+    --red2: #b91c1c;
+    --redBg: #2a0d0d;
+    --orange: #e3b341;
+    --orangeBg: #2a1f0d;
+    --atm: #58a6ff22;
+    --atmBorder: #58a6ff55;
+    --radius: 6px;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Space Grotesk', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 13px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  /* ─── Layout ─── */
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--font-mono);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  .logo span { color: var(--text2); font-weight: 300; }
+
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text3);
+    transition: background 0.3s;
+  }
+  .status-dot.live { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+  .status-dot.error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .status-label { font-size: 0.75rem; color: var(--text2); }
+
+  .countdown {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    min-width: 50px;
+  }
+
+  .spot-badge {
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 4px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+  .spot-badge .label { color: var(--text3); font-size: 0.7rem; display: block; line-height: 1; }
+  .spot-badge .value { color: var(--text); font-weight: 600; }
+
+  /* ─── Config Panel ─── */
+  .config-panel {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+  }
+
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 0.7rem; color: var(--text2); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .field input, .field select {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    outline: none;
+    min-width: 160px;
+    transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent2); }
+  .field input[type="password"] { letter-spacing: 0.15em; }
+
+  .btn {
+    padding: 7px 16px;
+    border-radius: var(--radius);
+    border: none;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent2); color: #fff; }
+  .btn-primary:hover { background: var(--accent); }
+  .btn-secondary { background: var(--bg4); color: var(--text); border: 1px solid var(--border2); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .field-inline { flex-direction: row; align-items: center; gap: 8px; }
+  .field-inline label { font-size: 0.75rem; white-space: nowrap; }
+
+  /* ─── Error ─── */
+  .error-banner {
+    background: var(--redBg);
+    border: 1px solid var(--red2);
+    color: var(--red);
+    padding: 10px 24px;
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    display: none;
+  }
+  .error-banner.show { display: block; }
+
+  /* ─── Main Content ─── */
+  .main { padding: 16px 24px; flex: 1; overflow-x: auto; }
+
+  /* ─── Timestamp ─── */
+  .meta-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .timestamp { font-size: 0.72rem; color: var(--text3); font-family: var(--font-mono); }
+  .atm-label {
+    font-size: 0.72rem;
+    background: var(--atm);
+    border: 1px solid var(--atmBorder);
+    color: var(--accent);
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+
+  /* ─── Table ─── */
+  .table-wrap { overflow-x: auto; margin-bottom: 24px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+    min-width: 1100px;
+  }
+
+  thead tr { background: var(--bg3); }
+
+  th {
+    padding: 8px 10px;
+    text-align: right;
+    font-weight: 500;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  th.center { text-align: center; }
+  th.strike-th { text-align: center; background: var(--bg4); }
+  th.ce-header { background: #0d2030; color: #58a6ff88; }
+  th.pe-header { background: #2a0d10; color: #f8514988; }
+
+  td {
+    padding: 6px 10px;
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-mono);
+    color: var(--text);
+    white-space: nowrap;
+  }
+  td.center { text-align: center; }
+  td.strike-cell {
+    text-align: center;
+    background: var(--bg4);
+    font-weight: 700;
+    color: var(--text);
+    border-left: 1px solid var(--border2);
+    border-right: 1px solid var(--border2);
+  }
+
+  tr.atm-row td { background: var(--atm); }
+  tr.atm-row td.strike-cell { background: #58a6ff18; border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); color: var(--accent); }
+
+  tr:hover td { background: #ffffff05; }
+  tr.atm-row:hover td { background: #58a6ff18; }
+
+  .ce-cell { background: #0d203011; }
+  .pe-cell { background: #2a0d1011; }
+
+  .positive { color: var(--green) !important; }
+  .negative { color: var(--red) !important; }
+  .neutral { color: var(--text2) !important; }
+
+  .oi-up { color: var(--red) !important; }
+  .oi-down { color: var(--green) !important; }
+
+  .sma-value { color: var(--orange); }
+
+  .atm-tag {
+    background: var(--accent2);
+    color: #fff;
+    font-size: 0.6rem;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: var(--font-sans);
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+
+  /* ─── Futures Section ─── */
+  .section-title {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text2);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .fut-table table { min-width: 800px; }
+
+  /* ─── Legend ─── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 10px 16px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: var(--text2); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ─── Loader ─── */
+  .loader {
+    display: none;
+    text-align: center;
+    padding: 60px;
+    color: var(--text2);
+    font-size: 0.85rem;
+  }
+  .loader.show { display: block; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── Empty State ─── */
+  .empty-state {
+    text-align: center;
+    padding: 80px 24px;
+    color: var(--text3);
+  }
+  .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+  .empty-state h3 { color: var(--text2); margin-bottom: 8px; font-weight: 500; }
+  .empty-state p { font-size: 0.8rem; }
+
+  /* ─── Responsive ─── */
+  @media (max-width: 768px) {
+    header { padding: 10px 16px; }
+    .config-panel { padding: 12px 16px; }
+    .main { padding: 12px 16px; }
+  }
+
+  /* ─── Refresh indicator ─── */
+  .refresh-bar {
+    height: 2px;
+    background: var(--border);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 2px;
+  }
+  .refresh-progress {
+    height: 100%;
+    background: var(--accent2);
+    transition: width 1s linear;
+    width: 0%;
+  }
+
+  .col-group-ce { border-left: 2px solid #1a3550; }
+  .col-group-pe { border-left: 2px solid #3d1a1a; }
+
+  .diff-positive { color: var(--green); }
+  .diff-negative { color: var(--red); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">NIFTY<span>/</span>CHAIN</div>
+    <div id="spotBadge" class="spot-badge" style="display:none;">
+      <span class="label">NIFTY SPOT</span>
+      <span class="value" id="spotValue">—</span>
+    </div>
+    <div class="header-right">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-label" id="statusLabel">Disconnected</span>
+      <span class="countdown" id="countdown"></span>
+      <span class="timestamp" id="lastUpdated"></span>
+    </div>
+  </header>
+
+  <!-- Config Panel -->
+  <div class="config-panel">
+    <div class="field">
+      <label>API Key</label>
+      <input type="text" id="apiKey" placeholder="your_api_key" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Access Token</label>
+      <input type="password" id="accessToken" placeholder="your_access_token" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Expiry Date</label>
+      <select id="expirySelect" disabled>
+        <option value="">— load expiries —</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Strikes ±ATM</label>
+      <input type="number" id="numStrikes" value="10" min="3" max="30" style="width:80px;">
+    </div>
+    <button class="btn btn-secondary" id="loadExpiriesBtn" onclick="loadExpiries()">Load Expiries</button>
+    <button class="btn btn-primary" id="startBtn" onclick="startFeed()" disabled>▶ Start Live Feed</button>
+    <button class="btn btn-secondary" id="stopBtn" onclick="stopFeed()" disabled>■ Stop</button>
+  </div>
+
+  <!-- Error Banner -->
+  <div class="error-banner" id="errorBanner"></div>
+
+  <!-- Refresh Bar -->
+  <div class="refresh-bar"><div class="refresh-progress" id="refreshProgress"></div></div>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Empty state -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">📊</div>
+      <h3>Nifty Options Chain</h3>
+      <p>Enter your Kite API credentials, load expiry dates, select an expiry and start the live feed.</p>
+    </div>
+
+    <!-- Loader -->
+    <div class="loader" id="loader">
+      <div class="spinner"></div>
+      Fetching options data...
+    </div>
+
+    <!-- Chain Content -->
+    <div id="chainContent" style="display:none;">
+
+      <!-- Legend -->
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>ATM Strike</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>OI Increasing (Bearish for CE / Bullish for PE)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>OI Decreasing</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>SMA Values</div>
+        <div class="legend-item">ATP-LTP: Positive = LTP &gt; ATP</div>
+      </div>
+
+      <div class="meta-row">
+        <span class="atm-label" id="atmLabel">ATM: —</span>
+        <span class="timestamp" id="chainTimestamp"></span>
+      </div>
+
+      <!-- Options Chain Table -->
+      <div class="table-wrap">
+        <table id="chainTable">
+          <colgroup>
+            <!-- CE cols: 8 -->
+            <col span="8">
+            <!-- Strike -->
+            <col>
+            <!-- PE cols: 8 -->
+            <col span="8">
+          </colgroup>
+          <thead>
+            <tr>
+              <th colspan="8" class="ce-header center">CALL (CE)</th>
+              <th class="strike-th">STRIKE</th>
+              <th colspan="8" class="pe-header center">PUT (PE)</th>
+            </tr>
+            <tr>
+              <!-- CE -->
+              <th class="ce-header">OI Chg</th>
+              <th class="ce-header">OI</th>
+              <th class="ce-header">Vol SMA10</th>
+              <th class="ce-header">Volume</th>
+              <th class="ce-header">LTP SMA8</th>
+              <th class="ce-header">LTP SMA5</th>
+              <th class="ce-header">ATP-LTP</th>
+              <th class="ce-header">LTP / ATP</th>
+              <!-- Strike -->
+              <th class="strike-th">—</th>
+              <!-- PE -->
+              <th class="pe-header">LTP / ATP</th>
+              <th class="pe-header">ATP-LTP</th>
+              <th class="pe-header">LTP SMA5</th>
+              <th class="pe-header">LTP SMA8</th>
+              <th class="pe-header">Volume</th>
+              <th class="pe-header">Vol SMA10</th>
+              <th class="pe-header">OI</th>
+              <th class="pe-header">OI Chg</th>
+            </tr>
+          </thead>
+          <tbody id="chainBody">
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Futures -->
+      <div class="section-title">Nifty Futures</div>
+      <div class="fut-table table-wrap">
+        <table id="futTable">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Symbol</th>
+              <th>LTP</th>
+              <th>LTP SMA5</th>
+              <th>LTP SMA8</th>
+              <th>OI</th>
+              <th>OI Chg</th>
+              <th>Volume</th>
+              <th>Vol SMA10</th>
+            </tr>
+          </thead>
+          <tbody id="futBody"></tbody>
+        </table>
+      </div>
+
+    </div><!-- /chainContent -->
+  </div><!-- /main -->
+
+</div><!-- /app -->
+
+<script>
+let feedInterval = null;
+let countdownInterval = null;
+let refreshTimer = 30;
+let isLoading = false;
+const REFRESH_SEC = 30;
+
+function fmt(val, dec=2) {
+  if (val === null || val === undefined) return '<span style="color:var(--text3)">—</span>';
+  return Number(val).toLocaleString('en-IN', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+
+function fmtInt(val) {
+  if (val === null || val === undefined) return '<span style="color:var(--text3)">—</span>';
+  return Number(val).toLocaleString('en-IN');
+}
+
+function oiChgCell(change, direction) {
+  if (change === null || change === undefined) return '<span style="color:var(--text3)">—</span>';
+  const cls = direction === 'increasing' ? 'oi-up' : (direction === 'decreasing' ? 'oi-down' : 'neutral');
+  const arrow = direction === 'increasing' ? '▲' : (direction === 'decreasing' ? '▼' : '●');
+  return `<span class="${cls}">${arrow} ${fmtInt(Math.abs(change))}</span>`;
+}
+
+function ltpAtpCell(ltp, atp) {
+  let html = '';
+  if (ltp !== null && ltp !== undefined) {
+    html += `<span>${fmt(ltp)}</span>`;
+  } else {
+    html += '<span style="color:var(--text3)">—</span>';
+  }
+  html += '<br>';
+  if (atp !== null && atp !== undefined) {
+    html += `<span style="color:var(--text2);font-size:0.72rem;">${fmt(atp)}</span>`;
+  } else {
+    html += '<span style="color:var(--text3);font-size:0.72rem;">—</span>';
+  }
+  return html;
+}
+
+function diffCell(diff) {
+  if (diff === null || diff === undefined) return '<span style="color:var(--text3)">—</span>';
+  const cls = diff > 0 ? 'diff-positive' : (diff < 0 ? 'diff-negative' : 'neutral');
+  const sign = diff > 0 ? '+' : '';
+  return `<span class="${cls}">${sign}${fmt(diff)}</span>`;
+}
+
+function smaCell(val) {
+  if (val === null || val === undefined) return '<span style="color:var(--text3)">—</span>';
+  return `<span class="sma-value">${fmt(val)}</span>`;
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBanner');
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('show');
+  setStatus('error', msg.substring(0, 40) + '...');
+}
+
+function clearError() {
+  document.getElementById('errorBanner').classList.remove('show');
+}
+
+function setStatus(state, label) {
+  const dot = document.getElementById('statusDot');
+  const lbl = document.getElementById('statusLabel');
+  dot.className = 'status-dot ' + (state === 'live' ? 'live' : state === 'error' ? 'error' : '');
+  lbl.textContent = label;
+}
+
+async function loadExpiries() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const accessToken = document.getElementById('accessToken').value.trim();
+  if (!apiKey || !accessToken) { showError('Enter API Key and Access Token first.'); return; }
+
+  const btn = document.getElementById('loadExpiriesBtn');
+  btn.disabled = true;
+  btn.textContent = 'Loading...';
+  clearError();
+
+  try {
+    const res = await fetch('/api/expiries', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({api_key: apiKey, access_token: accessToken})
+    });
+    const data = await res.json();
+    if (data.error) { showError(data.error); return; }
+    
+    const sel = document.getElementById('expirySelect');
+    sel.innerHTML = '<option value="">— Select Expiry —</option>';
+    data.expiries.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e;
+      opt.textContent = e;
+      sel.appendChild(opt);
+    });
+    sel.disabled = false;
+    document.getElementById('startBtn').disabled = false;
+    setStatus('', 'Ready');
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Load Expiries';
+  }
+}
+
+async function fetchChain() {
+  if (isLoading) return;
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const accessToken = document.getElementById('accessToken').value.trim();
+  const expiry = document.getElementById('expirySelect').value;
+  const numStrikes = document.getElementById('numStrikes').value;
+
+  if (!expiry) return;
+
+  isLoading = true;
+  setStatus('', 'Fetching...');
+
+  try {
+    const res = await fetch('/api/options_chain', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({api_key: apiKey, access_token: accessToken, expiry, num_strikes: numStrikes})
+    });
+    const data = await res.json();
+    if (data.error) { showError('API Error: ' + data.error); return; }
+
+    clearError();
+    renderChain(data);
+    setStatus('live', 'Live');
+    document.getElementById('lastUpdated').textContent = data.timestamp;
+    
+    // Update spot
+    document.getElementById('spotValue').textContent = Number(data.spot_price).toLocaleString('en-IN', {minimumFractionDigits: 2});
+    document.getElementById('spotBadge').style.display = 'block';
+    document.getElementById('atmLabel').textContent = 'ATM: ' + Number(data.atm_strike).toLocaleString('en-IN');
+    document.getElementById('chainTimestamp').textContent = 'Last: ' + data.timestamp;
+
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    isLoading = false;
+  }
+}
+
+function renderChain(data) {
+  const body = document.getElementById('chainBody');
+  body.innerHTML = '';
+
+  data.chain.forEach(row => {
+    const ce = row.ce || {};
+    const pe = row.pe || {};
+    const isAtm = row.is_atm;
+    const tr = document.createElement('tr');
+    if (isAtm) tr.className = 'atm-row';
+
+    tr.innerHTML = `
+      <td class="ce-cell">${oiChgCell(ce.oi_change, ce.oi_change_direction)}</td>
+      <td class="ce-cell">${fmtInt(ce.oi)}</td>
+      <td class="ce-cell">${smaCell(ce.volume_sma10)}</td>
+      <td class="ce-cell">${fmtInt(ce.volume)}</td>
+      <td class="ce-cell">${smaCell(ce.ltp_sma8)}</td>
+      <td class="ce-cell">${smaCell(ce.ltp_sma5)}</td>
+      <td class="ce-cell">${diffCell(ce.atp_ltp_diff)}</td>
+      <td class="ce-cell">${ltpAtpCell(ce.ltp, ce.atp)}</td>
+      <td class="strike-cell">${Number(row.strike).toLocaleString('en-IN')}${isAtm ? ' <span class="atm-tag">ATM</span>' : ''}</td>
+      <td class="pe-cell">${ltpAtpCell(pe.ltp, pe.atp)}</td>
+      <td class="pe-cell">${diffCell(pe.atp_ltp_diff)}</td>
+      <td class="pe-cell">${smaCell(pe.ltp_sma5)}</td>
+      <td class="pe-cell">${smaCell(pe.ltp_sma8)}</td>
+      <td class="pe-cell">${fmtInt(pe.volume)}</td>
+      <td class="pe-cell">${smaCell(pe.volume_sma10)}</td>
+      <td class="pe-cell">${fmtInt(pe.oi)}</td>
+      <td class="pe-cell">${oiChgCell(pe.oi_change, pe.oi_change_direction)}</td>
+    `;
+    body.appendChild(tr);
+  });
+
+  // Futures
+  const futBody = document.getElementById('futBody');
+  futBody.innerHTML = '';
+  (data.futures || []).forEach(f => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="text-align:left;font-family:var(--font-mono);color:var(--accent)">${f.trading_symbol}</td>
+      <td>${fmt(f.ltp)}</td>
+      <td>${smaCell(f.ltp_sma5)}</td>
+      <td>${smaCell(f.ltp_sma8)}</td>
+      <td>${fmtInt(f.oi)}</td>
+      <td>${oiChgCell(f.oi_change, f.oi_change_direction)}</td>
+      <td>${fmtInt(f.volume)}</td>
+      <td>${smaCell(f.volume_sma10)}</td>
+    `;
+    futBody.appendChild(tr);
+  });
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('loader').classList.remove('show');
+  document.getElementById('chainContent').style.display = 'block';
+}
+
+function startFeed() {
+  const expiry = document.getElementById('expirySelect').value;
+  if (!expiry) { showError('Select an expiry date first.'); return; }
+
+  stopFeed();
+  document.getElementById('loader').classList.add('show');
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+
+  fetchChain();
+
+  feedInterval = setInterval(fetchChain, REFRESH_SEC * 1000);
+  refreshTimer = REFRESH_SEC;
+
+  countdownInterval = setInterval(() => {
+    refreshTimer--;
+    if (refreshTimer <= 0) refreshTimer = REFRESH_SEC;
+    document.getElementById('countdown').textContent = `↻ ${refreshTimer}s`;
+    const pct = ((REFRESH_SEC - refreshTimer) / REFRESH_SEC * 100);
+    document.getElementById('refreshProgress').style.width = pct + '%';
+  }, 1000);
+}
+
+function stopFeed() {
+  if (feedInterval) { clearInterval(feedInterval); feedInterval = null; }
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+  document.getElementById('countdown').textContent = '';
+  document.getElementById('refreshProgress').style.width = '0%';
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  setStatus('', 'Stopped');
+}
+</script>
+</body>
+</html>
