@@ -234,7 +234,7 @@ def options_chain():
             pe = chain_data.get(pe_key, {})
             chain_rows.append({
                 'strike': strike,
-                'is_atm': strike == atm,
+                'is_atm': bool(strike == atm),
                 'ce': ce,
                 'pe': pe
             })
